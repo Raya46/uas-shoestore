@@ -10,20 +10,18 @@
 #include <stack>
 #include <ctime>
 #include <stdexcept>
-#include <list> // Untuk Linked List internal (riwayat transaksi)
+#include <list>
 
 using namespace std;
 
-// --- Struktur Data Pelanggan ---
 struct Pelanggan
 {
-    int id; // ID unik internal
+    int id;
     string nama;
-    string noTelepon;           // Juga berfungsi sebagai KEY di Hash Table
-    list<int> riwayatTransaksi; // Linked List internal untuk ID transaksi
+    string noTelepon;
+    list<int> riwayatTransaksi;
 };
 
-// --- Struktur Data Sepatu ---
 struct Sepatu
 {
     string id, nama, merk;
@@ -31,7 +29,6 @@ struct Sepatu
     int harga, stok;
 };
 
-// --- Struktur Data Transaksi ---
 struct CartItem
 {
     string shoeID;
@@ -53,7 +50,6 @@ struct Transaction
         : transactionID(id), dateTime(dt), customerName(cust), items(its), total(tot), next(nullptr) {}
 };
 
-// --- Struktur Node AVL untuk Sepatu ---
 struct Node
 {
     Sepatu data;
@@ -63,14 +59,13 @@ struct Node
     Node(Sepatu d) : data(d), left(nullptr), right(nullptr), height(1) {}
 };
 
-// --- Variabel Global ---
 unordered_map<string, Pelanggan> tabelPelanggan;
+
 int idPelangganBerikutnya = 1001;
 Node *root = nullptr;
 unordered_map<string, Sepatu> hashTable;
 Transaction *head = nullptr;
 
-// --- Fungsi-fungsi AVL Tree ---
 int getHeight(Node *n)
 {
     return n ? n->height : 0;
@@ -208,7 +203,6 @@ void inorder(Node *root, vector<Sepatu> &result)
     inorder(root->right, result);
 }
 
-// --- Fungsi-fungsi File Handling ---
 void loadFromFile(Node *&root, unordered_map<string, Sepatu> &hashTable)
 {
     ifstream file("sepatu.csv");
@@ -273,7 +267,6 @@ void saveToFile(Node *root)
     }
 }
 
-// --- Fungsi-fungsi Pelanggan ---
 void tampilkanDetailPelanggan(const Pelanggan &p)
 {
     cout << "------------------------------------\n";
@@ -305,6 +298,76 @@ void tambahkanTransaksiKePelanggan(const string &noHp, int idTransaksi)
     }
 }
 
+void loadPelangganFromFile()
+{
+    ifstream file("pelanggan.csv");
+    if (!file.is_open())
+    {
+        cerr << "Gagal membuka file pelanggan.csv. File tidak ditemukan.\n";
+        return;
+    }
+
+    string line;
+    // Skip header
+    getline(file, line);
+
+    while (getline(file, line))
+    {
+        try
+        {
+            stringstream ss(line);
+            string idStr, nama, noTelepon;
+            getline(ss, idStr, ',');
+            getline(ss, nama, ',');
+            getline(ss, noTelepon, ',');
+
+            // Extract numeric ID from CUST-XXX format
+            string numId = idStr.substr(5); // Skip "CUST-"
+            int id = stoi(numId);
+
+            Pelanggan p;
+            p.id = id;
+            p.nama = nama;
+            p.noTelepon = noTelepon;
+
+            tabelPelanggan[noTelepon] = p;
+            idPelangganBerikutnya = max(idPelangganBerikutnya, id + 1);
+        }
+        catch (exception &e)
+        {
+            cerr << "Format baris salah: " << e.what() << endl;
+        }
+    }
+    file.close();
+}
+
+void savePelangganToFile()
+{
+    try
+    {
+        ofstream file("pelanggan.csv");
+        if (!file.is_open())
+            throw runtime_error("Gagal membuka file untuk menyimpan.");
+
+        // Write header
+        file << "ID,Nama,Telepon\n";
+
+        // Write data
+        for (const auto &pair : tabelPelanggan)
+        {
+            const Pelanggan &p = pair.second;
+            file << "CUST-" << setfill('0') << setw(3) << p.id << ","
+                 << p.nama << ","
+                 << p.noTelepon << "\n";
+        }
+        file.close();
+    }
+    catch (exception &e)
+    {
+        cerr << "Error saat menyimpan data pelanggan: " << e.what() << endl;
+    }
+}
+
 void tambahPelanggan()
 {
     string nama, noTelepon;
@@ -315,7 +378,6 @@ void tambahPelanggan()
     cout << "Masukkan Nomor Telepon (akan jadi ID utama): ";
     getline(cin, noTelepon);
 
-    // Validasi: Cek apakah nomor telepon sudah ada (karena ini adalah key)
     if (tabelPelanggan.count(noTelepon))
     {
         cout << "\n>> Gagal! Nomor telepon '" << noTelepon << "' sudah terdaftar. <<\n";
@@ -329,9 +391,9 @@ void tambahPelanggan()
     pelangganBaru.id = idPelangganBerikutnya;
     pelangganBaru.nama = nama;
     pelangganBaru.noTelepon = noTelepon;
-    // riwayatTransaksi sudah otomatis kosong saat dibuat
 
-    tabelPelanggan[noTelepon] = pelangganBaru; // Menambah ke Hash Table
+    tabelPelanggan[noTelepon] = pelangganBaru;
+    savePelangganToFile(); // Save after adding new customer
 
     cout << "\n>> Sukses! Pelanggan '" << nama << "' berhasil ditambahkan. <<\n";
     cout << "ID Internal: " << idPelangganBerikutnya << ", No HP (Key): " << noTelepon << "\n";
@@ -354,11 +416,8 @@ void lihatDaftarPelanggan()
         daftar.push_back(pair.second);
     }
 
-    // Opsi sorting
     sort(daftar.begin(), daftar.end(), [](const Pelanggan &a, const Pelanggan &b)
-         {
-             return a.nama < b.nama; // Default sort berdasarkan nama
-         });
+         { return a.nama < b.nama; });
 
     cout << "\nDiurutkan berdasarkan nama (A-Z):\n";
     for (const auto &p : daftar)
@@ -395,14 +454,15 @@ void editDataPelanggan()
         cout << "Masukkan No. Telepon Baru (kosongkan jika tidak ingin diubah): ";
         getline(cin, noHpBaru);
 
-        // Update nama
+        bool adaPerubahan = false;
+
         if (!namaBaru.empty())
         {
             pelanggan.nama = namaBaru;
+            adaPerubahan = true;
             cout << "Nama berhasil diubah.\n";
         }
 
-        // Update nomor telepon (lebih kompleks karena ini adalah key)
         if (!noHpBaru.empty() && noHpBaru != noHpCari)
         {
             if (tabelPelanggan.count(noHpBaru))
@@ -411,13 +471,19 @@ void editDataPelanggan()
             }
             else
             {
-                Pelanggan dataPindahan = pelanggan; // Salin data
-                dataPindahan.noTelepon = noHpBaru;  // Update no HP di data salinan
+                Pelanggan dataPindahan = pelanggan;
+                dataPindahan.noTelepon = noHpBaru;
 
-                tabelPelanggan.erase(it);                // Hapus entri lama
-                tabelPelanggan[noHpBaru] = dataPindahan; // Masukkan entri baru dengan key baru
+                tabelPelanggan.erase(it);
+                tabelPelanggan[noHpBaru] = dataPindahan;
+                adaPerubahan = true;
                 cout << "No. Telepon berhasil diubah ke " << noHpBaru << ".\n";
             }
+        }
+
+        if (adaPerubahan)
+        {
+            savePelangganToFile(); // Save after making changes
         }
         cout << "\n>> Update selesai. <<\n";
     }
@@ -455,6 +521,7 @@ void hapusDataPelanggan()
         if (konfirmasi == 'y' || konfirmasi == 'Y')
         {
             tabelPelanggan.erase(it);
+            savePelangganToFile(); // Save after deleting customer
             cout << "\n>> Pelanggan berhasil dihapus. <<\n";
         }
         else
@@ -491,7 +558,7 @@ void cariPelanggan()
         cin.ignore(numeric_limits<streamsize>::max(), '\n');
         getline(cin, noHpCari);
 
-        auto it = tabelPelanggan.find(noHpCari); // Pencarian Hashing
+        auto it = tabelPelanggan.find(noHpCari);
         if (it != tabelPelanggan.end())
         {
             cout << "\nPelanggan ditemukan:\n";
@@ -511,7 +578,7 @@ void cariPelanggan()
 
         bool ditemukan = false;
         cout << "\nHasil Pencarian:\n";
-        // Pencarian linear di seluruh hash table
+
         for (const auto &pair : tabelPelanggan)
         {
             if (pair.second.nama.find(nama) != string::npos)
@@ -532,7 +599,6 @@ void cariPelanggan()
     }
 }
 
-// --- Fungsi-fungsi Sepatu ---
 void tampilkanTabel(const vector<Sepatu> &data)
 {
     cout << setfill('=') << setw(84) << "=" << endl;
@@ -711,7 +777,6 @@ void menuManajemenSepatu()
     } while (pilihan != 0);
 }
 
-// --- Fungsi-fungsi Transaksi ---
 string generateTransactionID()
 {
     time_t t = time(nullptr);
@@ -938,7 +1003,6 @@ void menuProsesPenjualan()
     }
 }
 
-// --- Fungsi-fungsi Riwayat Transaksi ---
 void tampilkanTransaksi(Transaction *t)
 {
     cout << "\nID Transaksi     : " << t->transactionID << endl;
@@ -1154,19 +1218,12 @@ void menuManajemenPelanggan()
     } while (pilihan != 6);
 }
 
-// --- Program Utama ---
 int main()
 {
     int pilihan;
 
     cout << "Startup Program & Data Loading...\n";
-    // Simulasi menambahkan beberapa data awal untuk testing
-    Pelanggan p1 = {1000, "Budi Santoso", "081234567890", {}};
-    tabelPelanggan[p1.noTelepon] = p1;
-    tambahkanTransaksiKePelanggan("081234567890", 5001);
-    tambahkanTransaksiKePelanggan("081234567890", 5002);
-
-    idPelangganBerikutnya = 1001;
+    loadPelangganFromFile(); // Load customer data from CSV
     loadFromFile(root, hashTable);
     cout << "Data berhasil dimuat.\n";
 
@@ -1209,6 +1266,7 @@ int main()
         case 5:
             cout << "\nMenyimpan data sebelum keluar...\n";
             saveToFile(root);
+            savePelangganToFile(); // Save customer data before exit
             cout << "Terima kasih telah menggunakan sistem!\n";
             break;
         default:
