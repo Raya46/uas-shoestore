@@ -10,16 +10,17 @@
 #include <stack>
 #include <ctime>
 #include <stdexcept>
+#include <list> // Untuk Linked List internal (riwayat transaksi)
 
 using namespace std;
 
 // --- Struktur Data Pelanggan ---
 struct Pelanggan
 {
-    int id;
+    int id; // ID unik internal
     string nama;
-    string noTelepon;
-    int jumlahTransaksi;
+    string noTelepon;           // Juga berfungsi sebagai KEY di Hash Table
+    list<int> riwayatTransaksi; // Linked List internal untuk ID transaksi
 };
 
 // --- Struktur Data Sepatu ---
@@ -63,7 +64,7 @@ struct Node
 };
 
 // --- Variabel Global ---
-unordered_map<int, Pelanggan> tabelPelanggan;
+unordered_map<string, Pelanggan> tabelPelanggan;
 int idPelangganBerikutnya = 1001;
 Node *root = nullptr;
 unordered_map<string, Sepatu> hashTable;
@@ -279,8 +280,29 @@ void tampilkanDetailPelanggan(const Pelanggan &p)
     cout << "ID Pelanggan    : " << p.id << "\n";
     cout << "Nama            : " << p.nama << "\n";
     cout << "No. Telepon     : " << p.noTelepon << "\n";
-    cout << "Jumlah Transaksi: " << p.jumlahTransaksi << "\n";
+    cout << "Riwayat Transaksi (ID): ";
+    if (p.riwayatTransaksi.empty())
+    {
+        cout << "Belum ada transaksi.\n";
+    }
+    else
+    {
+        for (int idTrans : p.riwayatTransaksi)
+        {
+            cout << idTrans << " ";
+        }
+        cout << "\n";
+    }
     cout << "------------------------------------\n";
+}
+
+void tambahkanTransaksiKePelanggan(const string &noHp, int idTransaksi)
+{
+    auto it = tabelPelanggan.find(noHp);
+    if (it != tabelPelanggan.end())
+    {
+        it->second.riwayatTransaksi.push_back(idTransaksi);
+    }
 }
 
 void tambahPelanggan()
@@ -290,21 +312,29 @@ void tambahPelanggan()
     cout << "\n--- Menambahkan Pelanggan Baru ---\n";
     cin.ignore(numeric_limits<streamsize>::max(), '\n');
 
+    cout << "Masukkan Nomor Telepon (akan jadi ID utama): ";
+    getline(cin, noTelepon);
+
+    // Validasi: Cek apakah nomor telepon sudah ada (karena ini adalah key)
+    if (tabelPelanggan.count(noTelepon))
+    {
+        cout << "\n>> Gagal! Nomor telepon '" << noTelepon << "' sudah terdaftar. <<\n";
+        return;
+    }
+
     cout << "Masukkan Nama Pelanggan: ";
     getline(cin, nama);
-
-    cout << "Masukkan Nomor Telepon: ";
-    getline(cin, noTelepon);
 
     Pelanggan pelangganBaru;
     pelangganBaru.id = idPelangganBerikutnya;
     pelangganBaru.nama = nama;
     pelangganBaru.noTelepon = noTelepon;
-    pelangganBaru.jumlahTransaksi = 0;
+    // riwayatTransaksi sudah otomatis kosong saat dibuat
 
-    tabelPelanggan[pelangganBaru.id] = pelangganBaru;
+    tabelPelanggan[noTelepon] = pelangganBaru; // Menambah ke Hash Table
 
-    cout << "\n>> Sukses! Pelanggan berhasil ditambahkan dengan ID: " << idPelangganBerikutnya << " <<\n";
+    cout << "\n>> Sukses! Pelanggan '" << nama << "' berhasil ditambahkan. <<\n";
+    cout << "ID Internal: " << idPelangganBerikutnya << ", No HP (Key): " << noTelepon << "\n";
 
     idPelangganBerikutnya++;
 }
@@ -312,7 +342,6 @@ void tambahPelanggan()
 void lihatDaftarPelanggan()
 {
     cout << "\n--- Daftar Semua Pelanggan ---\n";
-
     if (tabelPelanggan.empty())
     {
         cout << "Belum ada data pelanggan yang tersimpan.\n";
@@ -320,39 +349,22 @@ void lihatDaftarPelanggan()
     }
 
     vector<Pelanggan> daftar;
-    for (auto const &pair : tabelPelanggan)
+    for (const auto &pair : tabelPelanggan)
     {
         daftar.push_back(pair.second);
     }
 
-    int pilihanSort;
-    cout << "Urutkan berdasarkan:\n";
-    cout << "1. Nama (A-Z)\n";
-    cout << "2. Jumlah Transaksi (Terbanyak)\n";
-    cout << "Pilihan lain untuk urutan default (berdasarkan ID).\n";
-    cout << "Pilih opsi: ";
-    cin >> pilihanSort;
+    // Opsi sorting
+    sort(daftar.begin(), daftar.end(), [](const Pelanggan &a, const Pelanggan &b)
+         {
+             return a.nama < b.nama; // Default sort berdasarkan nama
+         });
 
-    if (pilihanSort == 1)
-    {
-        sort(daftar.begin(), daftar.end(), [](const Pelanggan &a, const Pelanggan &b)
-             { return a.nama < b.nama; });
-    }
-    else if (pilihanSort == 2)
-    {
-        sort(daftar.begin(), daftar.end(), [](const Pelanggan &a, const Pelanggan &b)
-             { return a.jumlahTransaksi > b.jumlahTransaksi; });
-    }
-
-    cout << "\n------------------------------------------------------------------\n";
-    printf("%-10s | %-25s | %-15s | %s\n", "ID", "Nama", "No. Telepon", "Jml Transaksi");
-    cout << "------------------------------------------------------------------\n";
-
+    cout << "\nDiurutkan berdasarkan nama (A-Z):\n";
     for (const auto &p : daftar)
     {
-        printf("%-10d | %-25s | %-15s | %d\n", p.id, p.nama.c_str(), p.noTelepon.c_str(), p.jumlahTransaksi);
+        tampilkanDetailPelanggan(p);
     }
-    cout << "------------------------------------------------------------------\n";
 }
 
 void editDataPelanggan()
@@ -364,39 +376,54 @@ void editDataPelanggan()
         return;
     }
 
-    int id;
-    cout << "Masukkan ID Pelanggan yang akan diedit: ";
-    cin >> id;
+    string noHpCari;
+    cout << "Masukkan No. Telepon pelanggan yang akan diedit: ";
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    getline(cin, noHpCari);
 
-    auto it = tabelPelanggan.find(id);
+    auto it = tabelPelanggan.find(noHpCari);
 
     if (it != tabelPelanggan.end())
     {
+        Pelanggan &pelanggan = it->second;
         cout << "\nData Pelanggan Saat Ini:\n";
-        tampilkanDetailPelanggan(it->second);
+        tampilkanDetailPelanggan(pelanggan);
 
-        string namaBaru, telpBaru;
-        cin.ignore(numeric_limits<streamsize>::max(), '\n');
-
+        string namaBaru, noHpBaru;
         cout << "Masukkan Nama Baru (kosongkan jika tidak ingin diubah): ";
         getline(cin, namaBaru);
         cout << "Masukkan No. Telepon Baru (kosongkan jika tidak ingin diubah): ";
-        getline(cin, telpBaru);
+        getline(cin, noHpBaru);
 
+        // Update nama
         if (!namaBaru.empty())
         {
-            it->second.nama = namaBaru;
-        }
-        if (!telpBaru.empty())
-        {
-            it->second.noTelepon = telpBaru;
+            pelanggan.nama = namaBaru;
+            cout << "Nama berhasil diubah.\n";
         }
 
-        cout << "\n>> Data pelanggan berhasil diperbarui. <<\n";
+        // Update nomor telepon (lebih kompleks karena ini adalah key)
+        if (!noHpBaru.empty() && noHpBaru != noHpCari)
+        {
+            if (tabelPelanggan.count(noHpBaru))
+            {
+                cout << "Gagal mengubah No. Telepon, nomor '" << noHpBaru << "' sudah digunakan oleh pelanggan lain.\n";
+            }
+            else
+            {
+                Pelanggan dataPindahan = pelanggan; // Salin data
+                dataPindahan.noTelepon = noHpBaru;  // Update no HP di data salinan
+
+                tabelPelanggan.erase(it);                // Hapus entri lama
+                tabelPelanggan[noHpBaru] = dataPindahan; // Masukkan entri baru dengan key baru
+                cout << "No. Telepon berhasil diubah ke " << noHpBaru << ".\n";
+            }
+        }
+        cout << "\n>> Update selesai. <<\n";
     }
     else
     {
-        cout << "\n>> Pelanggan dengan ID " << id << " tidak ditemukan. <<\n";
+        cout << "\n>> Pelanggan dengan No. Telepon '" << noHpCari << "' tidak ditemukan. <<\n";
     }
 }
 
@@ -409,11 +436,12 @@ void hapusDataPelanggan()
         return;
     }
 
-    int id;
-    cout << "Masukkan ID Pelanggan yang akan dihapus: ";
-    cin >> id;
+    string noHpCari;
+    cout << "Masukkan No. Telepon pelanggan yang akan dihapus: ";
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    getline(cin, noHpCari);
 
-    auto it = tabelPelanggan.find(id);
+    auto it = tabelPelanggan.find(noHpCari);
 
     if (it != tabelPelanggan.end())
     {
@@ -436,7 +464,7 @@ void hapusDataPelanggan()
     }
     else
     {
-        cout << "\n>> Pelanggan dengan ID " << id << " tidak ditemukan. <<\n";
+        cout << "\n>> Pelanggan dengan No. Telepon '" << noHpCari << "' tidak ditemukan. <<\n";
     }
 }
 
@@ -451,18 +479,19 @@ void cariPelanggan()
 
     int pilihan;
     cout << "Cari berdasarkan:\n";
-    cout << "1. ID Pelanggan\n";
-    cout << "2. Nama Pelanggan\n";
+    cout << "1. Nomor Telepon (Pencarian Cepat O(1))\n";
+    cout << "2. Nama Pelanggan (Pencarian Lambat O(N))\n";
     cout << "Pilih opsi: ";
     cin >> pilihan;
 
     if (pilihan == 1)
     {
-        int id;
-        cout << "Masukkan ID Pelanggan: ";
-        cin >> id;
+        string noHpCari;
+        cout << "Masukkan No. Telepon: ";
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        getline(cin, noHpCari);
 
-        auto it = tabelPelanggan.find(id);
+        auto it = tabelPelanggan.find(noHpCari); // Pencarian Hashing
         if (it != tabelPelanggan.end())
         {
             cout << "\nPelanggan ditemukan:\n";
@@ -470,7 +499,7 @@ void cariPelanggan()
         }
         else
         {
-            cout << "\n>> Pelanggan dengan ID " << id << " tidak ditemukan. <<\n";
+            cout << "\n>> Pelanggan dengan No. Telepon '" << noHpCari << "' tidak ditemukan. <<\n";
         }
     }
     else if (pilihan == 2)
@@ -482,7 +511,8 @@ void cariPelanggan()
 
         bool ditemukan = false;
         cout << "\nHasil Pencarian:\n";
-        for (auto const &pair : tabelPelanggan)
+        // Pencarian linear di seluruh hash table
+        for (const auto &pair : tabelPelanggan)
         {
             if (pair.second.nama.find(nama) != string::npos)
             {
@@ -1131,7 +1161,11 @@ int main()
 
     cout << "Startup Program & Data Loading...\n";
     // Simulasi menambahkan beberapa data awal untuk testing
-    tabelPelanggan[1000] = {1000, "Budi Santoso", "08123456789", 5};
+    Pelanggan p1 = {1000, "Budi Santoso", "081234567890", {}};
+    tabelPelanggan[p1.noTelepon] = p1;
+    tambahkanTransaksiKePelanggan("081234567890", 5001);
+    tambahkanTransaksiKePelanggan("081234567890", 5002);
+
     idPelangganBerikutnya = 1001;
     loadFromFile(root, hashTable);
     cout << "Data berhasil dimuat.\n";
