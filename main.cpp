@@ -308,7 +308,7 @@ void loadPelangganFromFile()
     }
 
     string line;
-    // Skip header
+
     getline(file, line);
 
     while (getline(file, line))
@@ -321,8 +321,7 @@ void loadPelangganFromFile()
             getline(ss, nama, ',');
             getline(ss, noTelepon, ',');
 
-            // Extract numeric ID from CUST-XXX format
-            string numId = idStr.substr(5); // Skip "CUST-"
+            string numId = idStr.substr(5);
             int id = stoi(numId);
 
             Pelanggan p;
@@ -349,10 +348,8 @@ void savePelangganToFile()
         if (!file.is_open())
             throw runtime_error("Gagal membuka file untuk menyimpan.");
 
-        // Write header
         file << "ID,Nama,Telepon\n";
 
-        // Write data
         for (const auto &pair : tabelPelanggan)
         {
             const Pelanggan &p = pair.second;
@@ -393,7 +390,7 @@ void tambahPelanggan()
     pelangganBaru.noTelepon = noTelepon;
 
     tabelPelanggan[noTelepon] = pelangganBaru;
-    savePelangganToFile(); // Save after adding new customer
+    savePelangganToFile();
 
     cout << "\n>> Sukses! Pelanggan '" << nama << "' berhasil ditambahkan. <<\n";
     cout << "ID Internal: " << idPelangganBerikutnya << ", No HP (Key): " << noTelepon << "\n";
@@ -483,7 +480,7 @@ void editDataPelanggan()
 
         if (adaPerubahan)
         {
-            savePelangganToFile(); // Save after making changes
+            savePelangganToFile();
         }
         cout << "\n>> Update selesai. <<\n";
     }
@@ -521,7 +518,7 @@ void hapusDataPelanggan()
         if (konfirmasi == 'y' || konfirmasi == 'Y')
         {
             tabelPelanggan.erase(it);
-            savePelangganToFile(); // Save after deleting customer
+            savePelangganToFile();
             cout << "\n>> Pelanggan berhasil dihapus. <<\n";
         }
         else
@@ -1223,7 +1220,7 @@ int main()
     int pilihan;
 
     cout << "Startup Program & Data Loading...\n";
-    loadPelangganFromFile(); // Load customer data from CSV
+    loadPelangganFromFile();
     loadFromFile(root, hashTable);
     cout << "Data berhasil dimuat.\n";
 
@@ -1266,7 +1263,7 @@ int main()
         case 5:
             cout << "\nMenyimpan data sebelum keluar...\n";
             saveToFile(root);
-            savePelangganToFile(); // Save customer data before exit
+            savePelangganToFile();
             cout << "Terima kasih telah menggunakan sistem!\n";
             break;
         default:
