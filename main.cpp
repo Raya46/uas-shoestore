@@ -11,6 +11,7 @@
 #include <ctime>
 #include <stdexcept>
 #include <list>
+#include <map>
 
 using namespace std;
 
@@ -847,6 +848,7 @@ void updateProductStock(const string &shoeID, int boughtQty)
 void saveTransactionCSV(const Transaction *trx)
 {
     ofstream file("transaksi.csv", ios::app);
+    file << fixed << setprecision(2);
     for (const auto &item : trx->items)
     {
         double subtotal = item.quantity * item.unitPrice;
@@ -858,6 +860,7 @@ void saveTransactionCSV(const Transaction *trx)
              << item.unitPrice << ","
              << subtotal << "\n";
     }
+    file.close();
 }
 
 void appendTransaction(Transaction *newTrx)
@@ -870,6 +873,84 @@ void appendTransaction(Transaction *newTrx)
         while (cur->next)
             cur = cur->next;
         cur->next = newTrx;
+    }
+}
+
+void loadTransaksiFromFile()
+{
+
+    while (head)
+    {
+        Transaction *temp = head;
+        head = head->next;
+        delete temp;
+    }
+
+    ifstream file("transaksi.csv");
+    if (!file.is_open())
+    {
+        cout << "Info: file transaksi.csv tidak ditemukan, memulai dengan riwayat kosong." << endl;
+        return;
+    }
+
+    string line;
+    map<string, pair<Transaction *, vector<CartItem>>> tempTransactions;
+
+    while (getline(file, line))
+    {
+        stringstream ss(line);
+        string trxID, dateTime, customerName, shoeID, qtyStr, priceStr, subtotalStr;
+
+        getline(ss, trxID, ',');
+        getline(ss, dateTime, ',');
+        getline(ss, customerName, ',');
+        getline(ss, shoeID, ',');
+        getline(ss, qtyStr, ',');
+        getline(ss, priceStr, ',');
+        getline(ss, subtotalStr, ',');
+
+        if (trxID.empty())
+            continue;
+
+        try
+        {
+            int quantity = stoi(qtyStr);
+            double unitPrice = stod(priceStr);
+            CartItem item = {shoeID, quantity, unitPrice};
+
+            if (tempTransactions.find(trxID) == tempTransactions.end())
+            {
+                Transaction *newTrx = new Transaction(trxID, dateTime, customerName, {}, 0);
+                tempTransactions[trxID] = {newTrx, {item}};
+            }
+            else
+            {
+                tempTransactions[trxID].second.push_back(item);
+            }
+        }
+        catch (const std::invalid_argument &e)
+        {
+            cerr << "Peringatan: Melewati baris tidak valid di transaksi.csv: " << line << endl;
+        }
+    }
+    file.close();
+
+    for (const auto &pair : tempTransactions)
+    {
+        const string &trxID = pair.first;
+        const auto &trxData = pair.second;
+        Transaction *trx = trxData.first;
+        const vector<CartItem> &items = trxData.second;
+
+        trx->items = items;
+        double total = 0;
+        for (const auto &item : trx->items)
+        {
+            total += item.quantity * item.unitPrice;
+        }
+        trx->total = total;
+
+        appendTransaction(trx);
     }
 }
 
@@ -942,6 +1023,7 @@ void processTransaction()
         {
             double total = 0;
             cout << "\n-- Ringkasan Transaksi --\n";
+            cout << fixed << setprecision(2);
             for (const auto &it : keranjangItems)
             {
                 double subtotal = it.quantity * it.unitPrice;
@@ -1055,14 +1137,31 @@ Transaction *cariTransaksi(const string &key, const string &tipe)
 
 void hapusTransaksi(const string &id)
 {
-    Transaction *temp = head, *prev = nullptr;
-    while (temp && temp->transactionID != id)
+    if (!head)
     {
+        cout << "Tidak ada transaksi yang tersedia.\n";
+        return;
+    }
+
+    string cleanId = id;
+    cleanId.erase(remove_if(cleanId.begin(), cleanId.end(), ::isspace), cleanId.end());
+
+    Transaction *temp = head;
+    Transaction *prev = nullptr;
+    bool found = false;
+
+    while (temp)
+    {
+        if (temp->transactionID == cleanId)
+        {
+            found = true;
+            break;
+        }
         prev = temp;
         temp = temp->next;
     }
 
-    if (!temp)
+    if (!found)
     {
         cout << "Transaksi tidak ditemukan.\n";
         return;
@@ -1079,7 +1178,38 @@ void hapusTransaksi(const string &id)
         else
             prev->next = temp->next;
         delete temp;
+
+        ofstream file("transaksi.csv", ios::trunc);
+        if (!file.is_open())
+        {
+            cout << "Error: Tidak dapat membuka file transaksi.csv untuk update.\n";
+            return;
+        }
+
+        Transaction *current = head;
+        while (current)
+        {
+            for (const auto &item : current->items)
+            {
+                double subtotal = item.quantity * item.unitPrice;
+                file << fixed << setprecision(2)
+                     << current->transactionID << ","
+                     << current->dateTime << ","
+                     << current->customerName << ","
+                     << item.shoeID << ","
+                     << item.quantity << ","
+                     << item.unitPrice << ","
+                     << subtotal << "\n";
+            }
+            current = current->next;
+        }
+        file.close();
+
         cout << "Transaksi berhasil dihapus.\n";
+    }
+    else
+    {
+        cout << "Penghapusan dibatalkan.\n";
     }
 }
 
@@ -1143,7 +1273,6 @@ void menuRiwayatTransaksi()
         {
             string id;
             cout << "Masukkan ID transaksi yang ingin dihapus: ";
-            cin.ignore();
             getline(cin, id);
             hapusTransaksi(id);
         }
@@ -1222,6 +1351,7 @@ int main()
     cout << "Startup Program & Data Loading...\n";
     loadPelangganFromFile();
     loadFromFile(root, hashTable);
+    loadTransaksiFromFile();
     cout << "Data berhasil dimuat.\n";
 
     do
