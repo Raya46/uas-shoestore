@@ -60,6 +60,390 @@ struct Node
     Node(Sepatu d) : data(d), left(nullptr), right(nullptr), height(1) {}
 };
 
+struct QueueNode
+{
+    string shoe_id;
+    int stock;
+    QueueNode *next;
+    QueueNode(const string &id, int s) : shoe_id(id), stock(s), next(nullptr) {}
+};
+
+class ShoeStockManager
+{
+private:
+    Node *root;
+    QueueNode *queueFront, *queueRear;
+
+    int height(Node *node)
+    {
+        return node ? node->height : 0;
+    }
+
+    int balanceFactor(Node *node)
+    {
+        return node ? height(node->left) - height(node->right) : 0;
+    }
+
+    void updateHeight(Node *node)
+    {
+        if (node)
+            node->height = max(height(node->left), height(node->right)) + 1;
+    }
+
+    Node *rightRotate(Node *y)
+    {
+        Node *x = y->left;
+        Node *T2 = x->right;
+        x->right = y;
+        y->left = T2;
+        updateHeight(y);
+        updateHeight(x);
+        return x;
+    }
+
+    Node *leftRotate(Node *x)
+    {
+        Node *y = x->right;
+        Node *T2 = y->left;
+        y->left = x;
+        x->right = T2;
+        updateHeight(x);
+        updateHeight(y);
+        return y;
+    }
+
+    Node *insert(Node *node, const Sepatu &shoe)
+    {
+        if (!node)
+            return new Node(shoe);
+
+        if (shoe.id < node->data.id)
+            node->left = insert(node->left, shoe);
+        else if (shoe.id > node->data.id)
+            node->right = insert(node->right, shoe);
+        else
+            return node;
+
+        updateHeight(node);
+        int balance = balanceFactor(node);
+
+        if (balance > 1 && shoe.id < node->left->data.id)
+            return rightRotate(node);
+
+        if (balance < -1 && shoe.id > node->right->data.id)
+            return leftRotate(node);
+
+        if (balance > 1 && shoe.id > node->left->data.id)
+        {
+            node->left = leftRotate(node->left);
+            return rightRotate(node);
+        }
+
+        if (balance < -1 && shoe.id < node->right->data.id)
+        {
+            node->right = rightRotate(node->right);
+            return leftRotate(node);
+        }
+
+        return node;
+    }
+
+    Node *find(Node *node, const string &id) const
+    {
+        if (!node || node->data.id == id)
+            return node;
+        if (id < node->data.id)
+            return find(node->left, id);
+        return find(node->right, id);
+    }
+
+    Node *findMin(Node *node) const
+    {
+        while (node && node->left)
+            node = node->left;
+        return node;
+    }
+
+    Node *remove(Node *node, const string &id)
+    {
+        if (!node)
+            return nullptr;
+
+        if (id < node->data.id)
+            node->left = remove(node->left, id);
+        else if (id > node->data.id)
+            node->right = remove(node->right, id);
+        else
+        {
+            if (!node->left)
+            {
+                Node *temp = node->right;
+                delete node;
+                return temp;
+            }
+            if (!node->right)
+            {
+                Node *temp = node->left;
+                delete node;
+                return temp;
+            }
+            Node *temp = findMin(node->right);
+            node->data = temp->data;
+            node->right = remove(node->right, temp->data.id);
+        }
+
+        updateHeight(node);
+        int balance = balanceFactor(node);
+
+        if (balance > 1 && balanceFactor(node->left) >= 0)
+            return rightRotate(node);
+
+        if (balance > 1 && balanceFactor(node->left) < 0)
+        {
+            node->left = leftRotate(node->left);
+            return rightRotate(node);
+        }
+
+        if (balance < -1 && balanceFactor(node->right) <= 0)
+            return leftRotate(node);
+
+        if (balance < -1 && balanceFactor(node->right) > 0)
+        {
+            node->right = rightRotate(node->right);
+            return leftRotate(node);
+        }
+
+        return node;
+    }
+
+    void enqueueLowStock(const string &shoe_id, int stock)
+    {
+        if (stock >= 5)
+            return;
+
+        QueueNode *current = queueFront;
+        QueueNode *prev = nullptr;
+        while (current)
+        {
+            if (current->shoe_id == shoe_id)
+            {
+                if (prev)
+                    prev->next = current->next;
+                else
+                    queueFront = current->next;
+                if (current == queueRear)
+                    queueRear = prev;
+                delete current;
+                break;
+            }
+            prev = current;
+            current = current->next;
+        }
+
+        QueueNode *node = new QueueNode(shoe_id, stock);
+        if (!queueRear)
+        {
+            queueFront = queueRear = node;
+        }
+        else
+        {
+            queueRear->next = node;
+            queueRear = node;
+        }
+    }
+
+    void displayLowStockNotifications()
+    {
+        if (!queueFront)
+        {
+            cout << "Tidak ada peringatan stok rendah.\n";
+            return;
+        }
+
+        cout << "\nDaftar Sepatu dengan Stok Rendah:\n";
+        cout << "--------------------------------\n";
+        while (queueFront)
+        {
+            Node *shoeNode = find(root, queueFront->shoe_id);
+            if (shoeNode)
+            {
+                cout << "ID: " << queueFront->shoe_id << "\n";
+                cout << "Nama: " << shoeNode->data.nama << "\n";
+                cout << "Merk: " << shoeNode->data.merk << "\n";
+                cout << "Stok Tersisa: " << queueFront->stock << " unit\n";
+                cout << "--------------------------------\n";
+            }
+            QueueNode *temp = queueFront;
+            queueFront = queueFront->next;
+            delete temp;
+        }
+        queueRear = nullptr;
+    }
+
+    void inOrder(Node *node, vector<Sepatu> &result) const
+    {
+        if (node)
+        {
+            inOrder(node->left, result);
+            result.push_back(node->data);
+            inOrder(node->right, result);
+        }
+    }
+
+public:
+    ShoeStockManager() : root(nullptr), queueFront(nullptr), queueRear(nullptr) {}
+
+    ~ShoeStockManager()
+    {
+        while (queueFront)
+        {
+            QueueNode *temp = queueFront;
+            queueFront = queueFront->next;
+            delete temp;
+        }
+        clearAVL(root);
+    }
+
+    void clearAVL(Node *node)
+    {
+        if (node)
+        {
+            clearAVL(node->left);
+            clearAVL(node->right);
+            delete node;
+        }
+    }
+
+    void initializeFromFile()
+    {
+        ifstream file("sepatu.csv");
+        if (!file.is_open())
+        {
+            cerr << "Gagal membuka file sepatu.csv. File tidak ditemukan.\n";
+            return;
+        }
+
+        string line;
+        getline(file, line);
+        while (getline(file, line))
+        {
+            try
+            {
+                stringstream ss(line);
+                string id, nama, merk, ukuranStr, hargaStr, stokStr;
+                getline(ss, id, ',');
+                getline(ss, nama, ',');
+                getline(ss, merk, ',');
+                getline(ss, ukuranStr, ',');
+                getline(ss, hargaStr, ',');
+                getline(ss, stokStr, ',');
+
+                Sepatu s;
+                s.id = id;
+                s.nama = nama;
+                s.merk = merk;
+                s.ukuran = stof(ukuranStr);
+                s.harga = stoi(hargaStr);
+                s.stok = stoi(stokStr);
+
+                root = insert(root, s);
+                if (s.stok < 5)
+                {
+                    enqueueLowStock(s.id, s.stok);
+                }
+            }
+            catch (exception &e)
+            {
+                cerr << "Format baris salah: " << e.what() << endl;
+            }
+        }
+        file.close();
+    }
+
+    bool updateStock(const string &shoe_id, int quantity)
+    {
+        Node *node = find(root, shoe_id);
+        if (!node)
+        {
+            cout << "ID Sepatu " << shoe_id << " tidak ditemukan.\n";
+            return false;
+        }
+        if (node->data.stok < quantity)
+        {
+            cout << "Stok tidak cukup untuk ID Sepatu " << shoe_id << ". Tersedia: " << node->data.stok << "\n";
+            return false;
+        }
+
+        Sepatu updatedShoe = node->data;
+        root = remove(root, shoe_id);
+        updatedShoe.stok -= quantity;
+        root = insert(root, updatedShoe);
+
+        enqueueLowStock(updatedShoe.id, updatedShoe.stok);
+        return true;
+    }
+
+    void checkLowStock()
+    {
+        displayLowStockNotifications();
+    }
+
+    bool addShoe(const Sepatu &shoe)
+    {
+        if (find(root, shoe.id))
+        {
+            cout << "ID Sepatu " << shoe.id << " sudah ada.\n";
+            return false;
+        }
+        root = insert(root, shoe);
+        if (shoe.stok < 5)
+        {
+            enqueueLowStock(shoe.id, shoe.stok);
+        }
+        return true;
+    }
+
+    bool editShoe(const string &id, const Sepatu &updatedShoe)
+    {
+        if (!find(root, id))
+        {
+            cout << "ID Sepatu " << id << " tidak ditemukan.\n";
+            return false;
+        }
+        root = remove(root, id);
+        root = insert(root, updatedShoe);
+        if (updatedShoe.stok < 5)
+        {
+            enqueueLowStock(updatedShoe.id, updatedShoe.stok);
+        }
+        return true;
+    }
+
+    bool deleteShoe(const string &id)
+    {
+        if (!find(root, id))
+        {
+            cout << "ID Sepatu " << id << " tidak ditemukan.\n";
+            return false;
+        }
+        root = remove(root, id);
+        return true;
+    }
+
+    Sepatu *findShoe(const string &id)
+    {
+        Node *node = find(root, id);
+        return node ? &(node->data) : nullptr;
+    }
+
+    vector<Sepatu> getAllShoes() const
+    {
+        vector<Sepatu> result;
+        inOrder(root, result);
+        return result;
+    }
+};
+
 unordered_map<string, Pelanggan> tabelPelanggan;
 
 int idPelangganBerikutnya = 1001;
@@ -627,6 +1011,9 @@ void tampilkanTabel(const vector<Sepatu> &data)
 
 void menuManajemenSepatu()
 {
+    ShoeStockManager stockManager;
+    stockManager.initializeFromFile();
+
     int pilihan;
     do
     {
@@ -636,8 +1023,9 @@ void menuManajemenSepatu()
         cout << "3. Edit Data Sepatu\n";
         cout << "4. Hapus Data Sepatu\n";
         cout << "5. Cari Berdasarkan ID\n";
+        cout << "6. Cek Stok Rendah\n";
         cout << "0. Kembali ke Menu Utama\n";
-        cout << "Pilihan: ";
+        cout << "Pilih: ";
         cin >> pilihan;
 
         if (cin.fail())
@@ -673,6 +1061,12 @@ void menuManajemenSepatu()
                 if (cin.fail())
                     throw runtime_error("Stok harus angka.");
                 cin.ignore();
+
+                if (stockManager.addShoe(s))
+                {
+                    hashTable[s.id] = s;
+                    cout << "Data berhasil ditambahkan.\n";
+                }
             }
             catch (exception &e)
             {
@@ -681,14 +1075,10 @@ void menuManajemenSepatu()
                 cout << "Input error: " << e.what() << endl;
                 continue;
             }
-            root = insert(root, s);
-            hashTable[s.id] = s;
-            cout << "Data berhasil ditambahkan.\n";
         }
         else if (pilihan == 2)
         {
-            vector<Sepatu> list;
-            inorder(root, list);
+            vector<Sepatu> list = stockManager.getAllShoes();
             sort(list.begin(), list.end(), [](Sepatu a, Sepatu b)
                  { return a.nama < b.nama; });
             tampilkanTabel(list);
@@ -698,29 +1088,31 @@ void menuManajemenSepatu()
             string id;
             cout << "Masukkan ID sepatu yang ingin diedit: ";
             cin >> id;
-            auto it = hashTable.find(id);
-            if (it == hashTable.end())
+            Sepatu *existingShoe = stockManager.findShoe(id);
+            if (!existingShoe)
             {
                 cout << "Data tidak ditemukan.\n";
             }
             else
             {
-                root = deleteNode(root, id);
-                Sepatu &s = it->second;
-                cout << "Data lama: " << s.nama << ", " << s.merk << ", Ukuran: " << s.ukuran << ", Harga: " << s.harga << ", Stok: " << s.stok << endl;
+                Sepatu updatedShoe = *existingShoe;
+                cout << "Data lama: " << updatedShoe.nama << ", " << updatedShoe.merk
+                     << ", Ukuran: " << updatedShoe.ukuran << ", Harga: " << updatedShoe.harga
+                     << ", Stok: " << updatedShoe.stok << endl;
+
                 cout << "Nama Baru: ";
                 cin.ignore();
-                getline(cin, s.nama);
+                getline(cin, updatedShoe.nama);
                 cout << "Merk Baru: ";
-                getline(cin, s.merk);
+                getline(cin, updatedShoe.merk);
                 try
                 {
                     cout << "Ukuran Baru: ";
-                    cin >> s.ukuran;
+                    cin >> updatedShoe.ukuran;
                     cout << "Harga Baru: ";
-                    cin >> s.harga;
+                    cin >> updatedShoe.harga;
                     cout << "Stok Baru: ";
-                    cin >> s.stok;
+                    cin >> updatedShoe.stok;
                     if (cin.fail())
                         throw runtime_error("Data harus berupa angka.");
                 }
@@ -731,8 +1123,12 @@ void menuManajemenSepatu()
                     cout << "Error: " << e.what() << endl;
                     continue;
                 }
-                root = insert(root, s);
-                cout << "Data berhasil diperbarui.\n";
+
+                if (stockManager.editShoe(id, updatedShoe))
+                {
+                    hashTable[id] = updatedShoe;
+                    cout << "Data berhasil diperbarui.\n";
+                }
             }
         }
         else if (pilihan == 4)
@@ -740,15 +1136,10 @@ void menuManajemenSepatu()
             string id;
             cout << "Masukkan ID sepatu yang ingin dihapus: ";
             cin >> id;
-            if (hashTable.count(id))
+            if (stockManager.deleteShoe(id))
             {
-                root = deleteNode(root, id);
                 hashTable.erase(id);
                 cout << "Data berhasil dihapus.\n";
-            }
-            else
-            {
-                cout << "Data tidak ditemukan.\n";
             }
         }
         else if (pilihan == 5)
@@ -756,16 +1147,21 @@ void menuManajemenSepatu()
             string id;
             cout << "Masukkan ID yang dicari: ";
             cin >> id;
-            if (hashTable.count(id))
+            Sepatu *shoe = stockManager.findShoe(id);
+            if (shoe)
             {
-                Sepatu s = hashTable[id];
                 cout << "Data ditemukan:\n";
-                tampilkanTabel({s});
+                tampilkanTabel({*shoe});
             }
             else
             {
                 cout << "Data tidak ditemukan.\n";
             }
+        }
+        else if (pilihan == 6)
+        {
+            cout << "\n=== Peringatan Stok Rendah ===\n";
+            stockManager.checkLowStock();
         }
         else if (pilihan != 0)
         {
@@ -1088,12 +1484,14 @@ void tampilkanTransaksi(Transaction *t)
     cout << "Nama Pelanggan   : " << t->customerName << endl;
     cout << "Tanggal          : " << t->dateTime << endl;
     cout << "Daftar Produk    :\n";
+    cout << fixed << setprecision(2);
     for (auto &item : t->items)
     {
         cout << "- " << item.shoeID << " x" << item.quantity
-             << " @ " << item.unitPrice << endl;
+             << " @ Rp " << item.unitPrice << endl;
     }
-    cout << "Total Harga      : " << t->total << endl;
+    cout << "Total Harga      : Rp " << t->total << endl;
+    cout << resetiosflags(ios::fixed);
 }
 
 void lihatSemua(bool terbaru)
