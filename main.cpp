@@ -290,7 +290,6 @@ private:
         }
     }
 
-    // Menyimpan data ke file CSV
     void saveToFile()
     {
         try
@@ -1305,92 +1304,24 @@ void appendTransaction(Transaction *newTrx)
     }
 }
 
-void loadTransaksiFromFile()
-{
-
-    while (head)
-    {
-        Transaction *temp = head;
-        head = head->next;
-        delete temp;
-    }
-
-    ifstream file("transaksi.csv");
-    if (!file.is_open())
-    {
-        cout << "Info: file transaksi.csv tidak ditemukan, memulai dengan riwayat kosong." << endl;
-        return;
-    }
-
-    string line;
-    map<string, pair<Transaction *, vector<CartItem>>> tempTransactions;
-
-    while (getline(file, line))
-    {
-        stringstream ss(line);
-        string trxID, dateTime, customerName, shoeID, qtyStr, priceStr, subtotalStr;
-
-        getline(ss, trxID, ',');
-        getline(ss, dateTime, ',');
-        getline(ss, customerName, ',');
-        getline(ss, shoeID, ',');
-        getline(ss, qtyStr, ',');
-        getline(ss, priceStr, ',');
-        getline(ss, subtotalStr, ',');
-
-        if (trxID.empty())
-            continue;
-
-        try
-        {
-            int quantity = stoi(qtyStr);
-            double unitPrice = stod(priceStr);
-            CartItem item = {shoeID, quantity, unitPrice};
-
-            if (tempTransactions.find(trxID) == tempTransactions.end())
-            {
-                Transaction *newTrx = new Transaction(trxID, dateTime, customerName, {}, 0);
-                tempTransactions[trxID] = {newTrx, {item}};
-            }
-            else
-            {
-                tempTransactions[trxID].second.push_back(item);
-            }
-        }
-        catch (const invalid_argument &e)
-        {
-            cerr << "Peringatan: Melewati baris tidak valid di transaksi.csv: " << line << endl;
-        }
-    }
-    file.close();
-
-    for (const auto &pair : tempTransactions)
-    {
-        const string &trxID = pair.first;
-        const auto &trxData = pair.second;
-        Transaction *trx = trxData.first;
-        const vector<CartItem> &items = trxData.second;
-
-        trx->items = items;
-        double total = 0;
-        for (const auto &item : trx->items)
-        {
-            total += item.quantity * item.unitPrice;
-        }
-        trx->total = total;
-
-        appendTransaction(trx);
-    }
-}
-
 void processTransaction()
 {
     stack<CartItem> keranjangStack;
     vector<CartItem> keranjangItems;
     string namaPelanggan;
+    string noTelepon;
 
     cout << "Masukkan nama pelanggan: ";
     getline(cin, namaPelanggan);
+    cout << "Masukkan nomor telepon pelanggan: ";
+    getline(cin, noTelepon);
+
+    auto it = tabelPelanggan.find(noTelepon);
+    if (it == tabelPelanggan.end())
+    {
+        cout << "Pelanggan tidak ditemukan. Silakan daftar terlebih dahulu.\n";
+        return;
+    }
 
     while (true)
     {
@@ -1458,11 +1389,11 @@ void processTransaction()
                 double subtotal = it.quantity * it.unitPrice;
                 cout << "ID: " << it.shoeID
                      << " | Jumlah: " << it.quantity
-                     << " | Harga/unit: " << it.unitPrice
-                     << " | Subtotal: " << subtotal << endl;
+                     << " | Harga/unit: Rp " << it.unitPrice
+                     << " | Subtotal: Rp " << subtotal << endl;
                 total += subtotal;
             }
-            cout << "Total keseluruhan: " << total << endl;
+            cout << "Total keseluruhan: Rp " << total << endl;
             cout << "Konfirmasi transaksi? (y/n): ";
             char konfirmasi;
             cin >> konfirmasi;
@@ -1476,6 +1407,10 @@ void processTransaction()
                 saveTransactionCSV(trx);
                 for (const auto &it : keranjangItems)
                     updateProductStock(it.shoeID, it.quantity);
+
+                it->second.riwayatTransaksi.push_back(stoi(trxID.substr(3)));
+                savePelangganToFile();
+
                 cout << "Transaksi berhasil. ID: " << trxID << endl;
             }
             else
@@ -1489,6 +1424,100 @@ void processTransaction()
             cout << "Opsi tidak valid. Silakan coba lagi.\n";
         }
     }
+}
+
+void loadTransaksiFromFile()
+{
+    while (head)
+    {
+        Transaction *temp = head;
+        head = head->next;
+        delete temp;
+    }
+
+    ifstream file("transaksi.csv");
+    if (!file.is_open())
+    {
+        cout << "Info: file transaksi.csv tidak ditemukan, memulai dengan riwayat kosong." << endl;
+        return;
+    }
+
+    string line;
+    map<string, pair<Transaction *, vector<CartItem>>> tempTransactions;
+
+    while (getline(file, line))
+    {
+        stringstream ss(line);
+        string trxID, dateTime, customerName, shoeID, qtyStr, priceStr, subtotalStr;
+
+        getline(ss, trxID, ',');
+        getline(ss, dateTime, ',');
+        getline(ss, customerName, ',');
+        getline(ss, shoeID, ',');
+        getline(ss, qtyStr, ',');
+        getline(ss, priceStr, ',');
+        getline(ss, subtotalStr, ',');
+
+        if (trxID.empty())
+            continue;
+
+        try
+        {
+            int quantity = stoi(qtyStr);
+            double unitPrice = stod(priceStr);
+            CartItem item = {shoeID, quantity, unitPrice};
+
+            if (tempTransactions.find(trxID) == tempTransactions.end())
+            {
+                Transaction *newTrx = new Transaction(trxID, dateTime, customerName, {}, 0);
+                tempTransactions[trxID] = {newTrx, {item}};
+            }
+            else
+            {
+                tempTransactions[trxID].second.push_back(item);
+            }
+
+            for (auto &pair : tabelPelanggan)
+            {
+                if (pair.second.nama == customerName)
+                {
+                    int trxNum = stoi(trxID.substr(3));
+                    if (find(pair.second.riwayatTransaksi.begin(),
+                             pair.second.riwayatTransaksi.end(),
+                             trxNum) == pair.second.riwayatTransaksi.end())
+                    {
+                        pair.second.riwayatTransaksi.push_back(trxNum);
+                    }
+                    break;
+                }
+            }
+        }
+        catch (const invalid_argument &e)
+        {
+            cerr << "Peringatan: Melewati baris tidak valid di transaksi.csv: " << line << endl;
+        }
+    }
+    file.close();
+
+    for (const auto &pair : tempTransactions)
+    {
+        const string &trxID = pair.first;
+        const auto &trxData = pair.second;
+        Transaction *trx = trxData.first;
+        const vector<CartItem> &items = trxData.second;
+
+        trx->items = items;
+        double total = 0;
+        for (const auto &item : trx->items)
+        {
+            total += item.quantity * item.unitPrice;
+        }
+        trx->total = total;
+
+        appendTransaction(trx);
+    }
+
+    savePelangganToFile();
 }
 
 void menuProsesPenjualan()
