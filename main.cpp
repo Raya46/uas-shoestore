@@ -112,6 +112,8 @@ private:
         return y;
     }
 
+    // manajemen sepatu insert
+
     Node *insert(Node *node, const Sepatu &shoe)
     {
         if (!node)
@@ -559,6 +561,8 @@ Node *minValueNode(Node *node)
     return current;
 }
 
+// manajemen sepatu delete
+
 Node *deleteNode(Node *root, string id)
 {
     if (!root)
@@ -610,6 +614,8 @@ Node *deleteNode(Node *root, string id)
     return root;
 }
 
+// manajemen sepatu inorder
+
 void inorder(Node *root, vector<Sepatu> &result)
 {
     if (!root)
@@ -618,6 +624,8 @@ void inorder(Node *root, vector<Sepatu> &result)
     result.push_back(root->data);
     inorder(root->right, result);
 }
+
+// manajemen sepatu load from file
 
 void loadFromFile(Node *&root, unordered_map<string, Sepatu> &hashTable)
 {
@@ -661,6 +669,8 @@ void loadFromFile(Node *&root, unordered_map<string, Sepatu> &hashTable)
     file.close();
 }
 
+// manajemen sepatu save to file
+
 void saveToFile(Node *root)
 {
     try
@@ -682,6 +692,8 @@ void saveToFile(Node *root)
         cerr << "Error saat menyimpan data: " << e.what() << endl;
     }
 }
+
+// manajemen pelanggan tampilkan detail
 
 void tampilkanDetailPelanggan(const Pelanggan &p)
 {
@@ -713,6 +725,8 @@ void tambahkanTransaksiKePelanggan(const string &noHp, int idTransaksi)
         it->second.riwayatTransaksi.push_back(idTransaksi);
     }
 }
+
+// manajemen pelanggan load pelanggan from file
 
 void loadPelangganFromFile()
 {
@@ -756,6 +770,8 @@ void loadPelangganFromFile()
     file.close();
 }
 
+// manajemen pelanggan save pelanggan to file
+
 void savePelangganToFile()
 {
     try
@@ -780,6 +796,8 @@ void savePelangganToFile()
         cerr << "Error saat menyimpan data pelanggan: " << e.what() << endl;
     }
 }
+
+// manajemen pelanggan tambah pelanggan
 
 void tambahPelanggan()
 {
@@ -814,6 +832,8 @@ void tambahPelanggan()
     idPelangganBerikutnya++;
 }
 
+// manajemen pelanggan lihat daftar pelanggan
+
 void lihatDaftarPelanggan()
 {
     cout << "\n--- Daftar Semua Pelanggan ---\n";
@@ -838,6 +858,8 @@ void lihatDaftarPelanggan()
         tampilkanDetailPelanggan(p);
     }
 }
+
+// manajemen pelanggan edit data pelanggan
 
 void editDataPelanggan()
 {
@@ -906,6 +928,8 @@ void editDataPelanggan()
     }
 }
 
+// manajemen pelanggan hapus data pelanggan
+
 void hapusDataPelanggan()
 {
     cout << "\n--- Menghapus Data Pelanggan ---\n";
@@ -947,6 +971,8 @@ void hapusDataPelanggan()
         cout << "\n>> Pelanggan dengan No. Telepon '" << noHpCari << "' tidak ditemukan. <<\n";
     }
 }
+
+// manajemen pelanggan cari pelanggan
 
 void cariPelanggan()
 {
@@ -1012,6 +1038,7 @@ void cariPelanggan()
     }
 }
 
+// manajemen sepatu tampilkan tabel
 void tampilkanTabel(const vector<Sepatu> &data)
 {
     cout << setfill('=') << setw(84) << "=" << endl;
@@ -1040,6 +1067,8 @@ void tampilkanTabel(const vector<Sepatu> &data)
     cout << setfill('=') << setw(84) << "=" << endl;
     cout << resetiosflags(ios::fixed);
 }
+
+// manajemen sepatu menu sepatu
 
 void menuManajemenSepatu()
 {
@@ -1203,6 +1232,8 @@ void menuManajemenSepatu()
     } while (pilihan != 0);
 }
 
+// proses penjualan generate id
+
 string generateTransactionID()
 {
     time_t t = time(nullptr);
@@ -1211,6 +1242,8 @@ string generateTransactionID()
     return ss.str();
 }
 
+// proses penjualan get current date time
+
 string getCurrentDateTime()
 {
     time_t t = time(nullptr);
@@ -1218,6 +1251,8 @@ string getCurrentDateTime()
     strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", localtime(&t));
     return buf;
 }
+
+// proses penjualan get product info
 
 bool getProductInfo(const string &shoeID, double &price, int &stock)
 {
@@ -1246,6 +1281,8 @@ bool getProductInfo(const string &shoeID, double &price, int &stock)
     return false;
 }
 
+// proses penjualan update product stock
+
 void updateProductStock(const string &shoeID, int boughtQty)
 {
     ifstream inFile("sepatu.csv");
@@ -1273,6 +1310,8 @@ void updateProductStock(const string &shoeID, int boughtQty)
     rename("sepatu_tmp.csv", "sepatu.csv");
 }
 
+// proses penjualan save transaction csv
+
 void saveTransactionCSV(const Transaction *trx)
 {
     ofstream file("transaksi.csv", ios::app);
@@ -1291,6 +1330,8 @@ void saveTransactionCSV(const Transaction *trx)
     file.close();
 }
 
+// proses penjualan append transaction
+
 void appendTransaction(Transaction *newTrx)
 {
     if (!head)
@@ -1303,6 +1344,8 @@ void appendTransaction(Transaction *newTrx)
         cur->next = newTrx;
     }
 }
+
+// proses penjualan process transaction
 
 void processTransaction()
 {
@@ -1426,6 +1469,8 @@ void processTransaction()
     }
 }
 
+// proses penjualan load transaksi from file
+
 void loadTransaksiFromFile()
 {
     while (head)
@@ -1520,6 +1565,8 @@ void loadTransaksiFromFile()
     savePelangganToFile();
 }
 
+// proses penjualan menu proses penjualan
+
 void menuProsesPenjualan()
 {
     while (true)
@@ -1539,6 +1586,8 @@ void menuProsesPenjualan()
             cout << "Opsi tidak valid.\n";
     }
 }
+
+// riwayat transaksi tampilkan transaksi
 
 void tampilkanTransaksi(Transaction *t)
 {
@@ -1579,6 +1628,8 @@ void lihatSemua(bool terbaru)
         tampilkanTransaksi(t);
 }
 
+// riwayat transaksi cari transaksi
+
 Transaction *cariTransaksi(const string &key, const string &tipe)
 {
     Transaction *temp = head;
@@ -1594,6 +1645,8 @@ Transaction *cariTransaksi(const string &key, const string &tipe)
     }
     return nullptr;
 }
+
+// riwayat transaksi hapus transaksi
 
 void hapusTransaksi(const string &id)
 {
@@ -1672,6 +1725,8 @@ void hapusTransaksi(const string &id)
         cout << "Penghapusan dibatalkan.\n";
     }
 }
+
+// riwayat transaksi filter tanggal
 
 void filterTanggal(const string &awal, const string &akhir)
 {
