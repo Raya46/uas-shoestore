@@ -290,6 +290,34 @@ private:
         }
     }
 
+    // Menyimpan data ke file CSV
+    void saveToFile()
+    {
+        try
+        {
+            ofstream file("sepatu.csv");
+            if (!file.is_open())
+                throw runtime_error("Gagal membuka file untuk menyimpan.");
+
+            vector<Sepatu> list;
+            inOrder(root, list);
+            for (const auto &s : list)
+            {
+                file << s.id << ","
+                     << s.nama << ","
+                     << s.merk << ","
+                     << s.ukuran << ","
+                     << s.harga << ","
+                     << s.stok << "\n";
+            }
+            file.close();
+        }
+        catch (exception &e)
+        {
+            cerr << "Error saat menyimpan data: " << e.what() << endl;
+        }
+    }
+
 public:
     ShoeStockManager() : root(nullptr), queueFront(nullptr), queueRear(nullptr) {}
 
@@ -380,6 +408,7 @@ public:
         root = insert(root, updatedShoe);
 
         enqueueLowStock(updatedShoe.id, updatedShoe.stok);
+        saveToFile();
         return true;
     }
 
@@ -400,6 +429,7 @@ public:
         {
             enqueueLowStock(shoe.id, shoe.stok);
         }
+        saveToFile();
         return true;
     }
 
@@ -416,6 +446,7 @@ public:
         {
             enqueueLowStock(updatedShoe.id, updatedShoe.stok);
         }
+        saveToFile();
         return true;
     }
 
@@ -427,6 +458,7 @@ public:
             return false;
         }
         root = remove(root, id);
+        saveToFile();
         return true;
     }
 
@@ -993,7 +1025,7 @@ void tampilkanTabel(const vector<Sepatu> &data)
          << "| " << setw(8) << "Stok"
          << "|" << endl;
     cout << setfill('=') << setw(84) << "=" << endl;
-    cout << setfill(' ');
+    cout << setfill(' ') << fixed << setprecision(2);
 
     for (const auto &s : data)
     {
@@ -1007,6 +1039,7 @@ void tampilkanTabel(const vector<Sepatu> &data)
     }
 
     cout << setfill('=') << setw(84) << "=" << endl;
+    cout << resetiosflags(ios::fixed);
 }
 
 void menuManajemenSepatu()

@@ -1,6 +1,5 @@
-1,sepatu nike,nike,40,1,40
-SHOE-001,Nike Air Max,Nike,42,1,6
-SHOE-002,Adidas Ultraboost,Adidas,41,1,5
-SHOE-003,Puma RS-X,Puma,43,1,8
-SHOE-004,Reebok Classic,Reebok,40,1,15
-SHOE-005,New Balance 574,New Balance,39,1,12
+SHOE-001,Nike Air Max,Nike,42,200000,6
+SHOE-002,Adidas Ultraboost,Adidas,41,300000,5
+SHOE-003,Puma RS-X,Puma,43,700000,8
+SHOE-004,Reebok Classic,Reebok,40,600000,15
+SHOE-005,New Balance 574,New Balance,39,800000,12
