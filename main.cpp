@@ -1324,7 +1324,7 @@ void loadTransaksiFromFile()
                 tempTransactions[trxID].second.push_back(item);
             }
         }
-        catch (const std::invalid_argument &e)
+        catch (const invalid_argument &e)
         {
             cerr << "Peringatan: Melewati baris tidak valid di transaksi.csv: " << line << endl;
         }
